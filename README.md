@@ -1,6 +1,8 @@
 # Jackal API Server
 The Jackal API Server is an HTTP server designed to act as a centralized upload point for the Jackal Protocol. This can be run as-is locally or integrated into existing tech-stacks through a series of HTTP requests.
 
+You will need to supply the API with a seed phrase that corresponds to a Jackal account with $JKL funding and a storage plan active. You can activate that storage plan by heading to the dashboard with a wallet connected sharing the seed-phrase of the API.
+
 ## Installation
 ### Standard
 ```shell
