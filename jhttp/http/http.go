@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
 	"github.com/JackalLabs/jackalgo/handlers/wallet_handler"
@@ -17,14 +18,12 @@ func start(port int, get Handlers, post Handlers, queue *Queue, fileIo *file_io_
 	handler := cors.Default().Handler(router)
 
 	for getKey, getFunc := range get {
-		fmt.Printf("New GET route: %s\n", getKey)
 		router.GET(getKey, func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 			getFunc(w, r, ps, queue, fileIo)
 		})
 	}
 
 	for postKey, postFunc := range post {
-		fmt.Printf("New POST route: %s\n", postKey)
 		router.POST(postKey, func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 			postFunc(w, r, ps, queue, fileIo)
 		})
@@ -47,10 +46,30 @@ func start(port int, get Handlers, post Handlers, queue *Queue, fileIo *file_io_
 }
 
 func StartServer(Gets Handlers, Posts Handlers, initalDirs []string) {
+
+	seed := os.Getenv("JHTTP_SEED")
+	rpc := os.Getenv("JHTTP_RPC")
+	if len(rpc) == 0 {
+		rpc = "https://jackal-testnet-rpc.polkachu.com:443"
+	}
+	chainid := os.Getenv("JHTTP_CHAIN")
+	if len(chainid) == 0 {
+		chainid = "lupulella-2"
+	}
+	port := os.Getenv("JHTTP_PORT")
+	if len(port) == 0 {
+		port = "3535"
+	}
+
+	portNum, err := strconv.ParseInt(port, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+
 	wallet, err := wallet_handler.NewWalletHandler(
-		"slim odor fiscal swallow piece tide naive river inform shell dune crunch canyon ten time universe orchard roast horn ritual siren cactus upon forum",
-		"https://jackal-testnet-rpc.polkachu.com:443",
-		"lupulella-2")
+		seed, //slim odor fiscal swallow piece tide naive river inform shell dune crunch canyon ten time universe orchard roast horn ritual siren cactus upon forum
+		rpc,
+		chainid)
 
 	if err != nil {
 		panic(err)
@@ -61,18 +80,16 @@ func StartServer(Gets Handlers, Posts Handlers, initalDirs []string) {
 		panic(err)
 	}
 
-	res, err := fileIo.GenerateInitialDirs(initalDirs)
+	_, err = fileIo.GenerateInitialDirs(initalDirs)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println(res.RawLog)
-
-	fmt.Println(wallet.GetAddress())
+	fmt.Printf("Starting server with account: %s\n", wallet.GetAddress())
 
 	queue := NewQueue()
 	go queue.Listen()
 
-	start(3535, Gets, Posts, queue, fileIo)
+	start(int(portNum), Gets, Posts, queue, fileIo)
 
 }
