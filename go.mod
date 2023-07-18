@@ -3,7 +3,7 @@ module github.com/JackalLabs/jackalapi
 go 1.20
 
 require (
-	github.com/JackalLabs/jackalgo v0.0.0
+	github.com/JackalLabs/jackalgo v0.0.1
 	github.com/ipfs/boxo v0.10.0
 	github.com/ipfs/go-cid v0.4.1
 	github.com/ipfs/go-datastore v0.6.0
@@ -11,7 +11,7 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/libp2p/go-libp2p v0.27.5
 	github.com/libp2p/go-libp2p-kad-dht v0.21.1
-	github.com/libp2p/go-libp2p-routing-helpers v0.7.0
+	github.com/libp2p/go-libp2p-record v0.2.0
 	github.com/multiformats/go-multiaddr v0.9.0
 	github.com/rs/cors v1.9.0
 )
@@ -137,7 +137,7 @@ require (
 	github.com/libp2p/go-flow-metrics v0.1.0 // indirect
 	github.com/libp2p/go-libp2p-asn-util v0.3.0 // indirect
 	github.com/libp2p/go-libp2p-kbucket v0.5.0 // indirect
-	github.com/libp2p/go-libp2p-record v0.2.0 // indirect
+	github.com/libp2p/go-libp2p-routing-helpers v0.7.0 // indirect
 	github.com/libp2p/go-msgio v0.3.0 // indirect
 	github.com/libp2p/go-nat v0.1.0 // indirect
 	github.com/libp2p/go-netroute v0.2.1 // indirect
@@ -238,15 +238,10 @@ require (
 replace (
 	// use cosmos keyring
 	github.com/99designs/keyring => github.com/cosmos/keyring v1.2.0
-	github.com/CosmWasm/wasmd => github.com/CosmosContracts/wasmd v0.29.2-patch.1
 
 	github.com/JackalLabs/jackal-provider => github.com/JackalLabs/canine-provider v1.0.10-beta.1.0.20230626192716-041b1c701abd
 
-	github.com/JackalLabs/jackalgo => ../jackalgo
 	github.com/Lazarus/lz-string-go => github.com/lazarus/lz-string-go v0.0.0-20220923232958-c256c46c2022
-
-	// dragonberry ics23 patch
-	github.com/confio/ics23/go => github.com/cosmos/cosmos-sdk/ics23/go v0.8.0
 
 	github.com/cosmos/cosmos-sdk => github.com/JackalLabs/cosmos-sdk-new v0.45.17-0.20230704034202-b88b1fbc9b2f
 
