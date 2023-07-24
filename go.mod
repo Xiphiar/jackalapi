@@ -3,7 +3,7 @@ module github.com/JackalLabs/jackalapi
 go 1.20
 
 require (
-	github.com/JackalLabs/jackalgo v0.0.1
+	github.com/JackalLabs/jackalgo v0.0.2
 	github.com/ipfs/boxo v0.10.0
 	github.com/ipfs/go-cid v0.4.1
 	github.com/ipfs/go-datastore v0.6.0
