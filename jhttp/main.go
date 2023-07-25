@@ -30,6 +30,28 @@ func main() {
 		}
 	}
 
+	Gets["/download/:name"] = func(w http2.ResponseWriter, r *http2.Request, ps httprouter.Params, q *http.Queue, fileIo *file_io_handler.FileIoHandler) {
+
+		name := ps.ByName("name")
+
+		var allBytes []byte
+
+		handler, err := fileIo.DownloadFile(fmt.Sprintf("%s/%s", ParentFolder, name))
+		if err != nil {
+			fmt.Println("download file failed", err.Error())
+			w.WriteHeader(http2.StatusInternalServerError)
+			_, _ = w.Write([]byte(err.Error()))
+			return
+		}
+
+		allBytes = handler.GetFile().Buffer().Bytes()
+
+		_, err = w.Write(allBytes)
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	Posts["/upload"] = func(w http2.ResponseWriter, r *http2.Request, ps httprouter.Params, q *http.Queue, fileIo *file_io_handler.FileIoHandler) {
 		// ParseMultipartForm parses a request body as multipart/form-data
 		err := r.ParseMultipartForm(MaxFileSize) // MAX file size lives here
