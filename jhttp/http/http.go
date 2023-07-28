@@ -18,14 +18,21 @@ func start(port int, get Handlers, post Handlers, queue *Queue, fileIo *file_io_
 	handler := cors.Default().Handler(router)
 
 	for getKey, getFunc := range get {
+		f := *getFunc
+		fmt.Printf("GET: %s, %v\n", getKey, f)
 		router.GET(getKey, func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-			getFunc(w, r, ps, queue, fileIo)
+
+			f(w, r, ps, queue, fileIo)
 		})
 	}
 
 	for postKey, postFunc := range post {
+		p := *postFunc
+
+		fmt.Printf("POST: %s, %v\n", postKey, p)
 		router.POST(postKey, func(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-			postFunc(w, r, ps, queue, fileIo)
+
+			p(w, r, ps, queue, fileIo)
 		})
 	}
 

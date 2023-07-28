@@ -23,14 +23,15 @@ func main() {
 	Gets := make(http.Handlers, 0)
 	Posts := make(http.Handlers, 0)
 
-	Gets["/version"] = func(w http2.ResponseWriter, r *http2.Request, ps httprouter.Params, q *http.Queue, fileIo *file_io_handler.FileIoHandler) {
+	getVersion := func(w http2.ResponseWriter, r *http2.Request, ps httprouter.Params, q *http.Queue, fileIo *file_io_handler.FileIoHandler) {
 		_, err := w.Write([]byte("v0.0.0"))
 		if err != nil {
 			panic(err)
 		}
 	}
+	Gets["/version"] = &getVersion
 
-	Gets["/download/:name"] = func(w http2.ResponseWriter, r *http2.Request, ps httprouter.Params, q *http.Queue, fileIo *file_io_handler.FileIoHandler) {
+	getDownload := func(w http2.ResponseWriter, r *http2.Request, ps httprouter.Params, q *http.Queue, fileIo *file_io_handler.FileIoHandler) {
 
 		name := ps.ByName("name")
 
@@ -51,8 +52,9 @@ func main() {
 			panic(err)
 		}
 	}
+	Gets["/download/:name"] = &getDownload
 
-	Posts["/upload"] = func(w http2.ResponseWriter, r *http2.Request, ps httprouter.Params, q *http.Queue, fileIo *file_io_handler.FileIoHandler) {
+	postUpload := func(w http2.ResponseWriter, r *http2.Request, ps httprouter.Params, q *http.Queue, fileIo *file_io_handler.FileIoHandler) {
 		// ParseMultipartForm parses a request body as multipart/form-data
 		err := r.ParseMultipartForm(MaxFileSize) // MAX file size lives here
 		if err != nil {
@@ -118,6 +120,8 @@ func main() {
 			panic(err)
 		}
 	}
+
+	Posts["/upload"] = &postUpload
 
 	http.StartServer(Gets, Posts, []string{"jhttp"})
 

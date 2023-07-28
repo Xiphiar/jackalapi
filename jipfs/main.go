@@ -29,7 +29,7 @@ func main() {
 	Gets := make(http.Handlers, 0)
 	Posts := make(http.Handlers, 0)
 
-	Gets["/ipfs/*cid"] = func(w http2.ResponseWriter, r *http2.Request, ps httprouter.Params, q *http.Queue, fileIo *file_io_handler.FileIoHandler) {
+	getIpfs := func(w http2.ResponseWriter, r *http2.Request, ps httprouter.Params, q *http.Queue, fileIo *file_io_handler.FileIoHandler) {
 
 		cid := ps.ByName("cid")
 		if len(cid) == 0 {
@@ -129,6 +129,14 @@ func main() {
 			panic(err)
 		}
 	}
+
+	Gets["/ipfs/*cid"] = &getIpfs
+
+	getVersion := func(w http2.ResponseWriter, r *http2.Request, ps httprouter.Params, q *http.Queue, fileIo *file_io_handler.FileIoHandler) {
+		_, _ = w.Write([]byte("v0.0.0"))
+	}
+
+	Gets["/version"] = &getVersion
 
 	http.StartServer(Gets, Posts, []string{"jipfs"})
 }
