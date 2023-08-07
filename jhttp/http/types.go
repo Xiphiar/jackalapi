@@ -1,13 +1,13 @@
 package http
 
 import (
+	"github.com/uptrace/bunrouter"
 	"net/http"
 
 	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
-	"github.com/julienschmidt/httprouter"
 )
 
-type Handlers map[string]*func(w http.ResponseWriter, r *http.Request, ps httprouter.Params, queue *Queue, fileIo *file_io_handler.FileIoHandler)
+type Handlers map[string]*func(w http.ResponseWriter, r bunrouter.Request, queue *Queue, fileIo *file_io_handler.FileIoHandler) error
 
 type UploadResponse struct {
 	FID string `json:"fid"`
