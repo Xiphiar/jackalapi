@@ -2,18 +2,21 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
+	jhttp "github.com/JackalLabs/jackalapi/jhttp/http"
+	"github.com/JackalLabs/jackalapi/jipfs/ipfs"
+	"github.com/JackalLabs/jackalgo/handlers/file_upload_handler"
+	"github.com/rs/cors"
+	"github.com/uptrace/bunrouter"
 	"io"
-	http2 "net/http"
+	"net/http"
 	url2 "net/url"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/JackalLabs/jackalapi/jhttp/http"
-	"github.com/JackalLabs/jackalapi/jipfs/ipfs"
-	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
-	"github.com/JackalLabs/jackalgo/handlers/file_upload_handler"
-	"github.com/julienschmidt/httprouter"
 )
 
 const ParentFolder = "s/jipfs"
@@ -26,17 +29,56 @@ func main() {
 	}
 	defer h.Close()
 
-	Gets := make(http.Handlers, 0)
-	Posts := make(http.Handlers, 0)
+	fmt.Println("Starting jIPFS...")
 
-	getIpfs := func(w http2.ResponseWriter, r *http2.Request, ps httprouter.Params, q *http.Queue, fileIo *file_io_handler.FileIoHandler) {
+	port := os.Getenv("JHTTP_PORT")
+	if len(port) == 0 {
+		port = "3535"
+	}
 
-		cid := ps.ByName("cid")
+	portNum, err := strconv.ParseInt(port, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+
+	router := bunrouter.New()
+
+	q, fileIo := jhttp.InitServer([]string{"stratus"})
+
+	router.GET("/version", func(w http.ResponseWriter, r bunrouter.Request) error {
+		_, err := w.Write([]byte("v0.0.0"))
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	router.GET("/ls", func(w http.ResponseWriter, r bunrouter.Request) error {
+
+		folder, err := fileIo.DownloadFolder(ParentFolder)
+		if err != nil {
+			return err
+		}
+
+		children := folder.GetChildFiles()
+
+		childrenJson, err := json.Marshal(children)
+		if err != nil {
+			return err
+		}
+
+		w.Write(childrenJson)
+
+		return nil
+	})
+
+	router.GET("/ipfs/*cid", func(w http.ResponseWriter, r bunrouter.Request) error {
+
+		cid := r.Param("cid")
 		if len(cid) == 0 {
 			w.WriteHeader(500)
-			return
+			return errors.New("failed to get cid")
 		}
-		cid = cid[1:]
 		fileName := strings.ReplaceAll(cid, "/", "_")
 
 		var allBytes []byte
@@ -46,44 +88,45 @@ func main() {
 			url, err := url2.Parse("https://ipfs.io/ipfs/")
 			if err != nil {
 				fmt.Println("urlparse failed", err)
-				w.WriteHeader(http2.StatusInternalServerError)
+				w.WriteHeader(http.StatusInternalServerError)
 				_, _ = w.Write([]byte(err.Error()))
-				return
+				return err
 			}
 
 			url = url.JoinPath(cid)
+			fmt.Println(url.String())
 
-			req, err := http2.NewRequest("GET", url.String(), nil)
+			req, err := http.NewRequest("GET", url.String(), nil)
 			if err != nil {
 				fmt.Println("fileupload failed", err)
-				w.WriteHeader(http2.StatusInternalServerError)
+				w.WriteHeader(http.StatusInternalServerError)
 				_, _ = w.Write([]byte(err.Error()))
-				return
+				return err
 			}
 
-			res, err := http2.DefaultClient.Do(req)
+			res, err := http.DefaultClient.Do(req)
 			if err != nil {
 				fmt.Println("fileupload failed", err)
-				w.WriteHeader(http2.StatusInternalServerError)
+				w.WriteHeader(http.StatusInternalServerError)
 				_, _ = w.Write([]byte(err.Error()))
-				return
+				return err
 			}
 
 			var b bytes.Buffer
 			size, err := io.Copy(&b, res.Body)
 			if err != nil {
 				fmt.Println("fileupload failed", err)
-				w.WriteHeader(http2.StatusInternalServerError)
+				w.WriteHeader(http.StatusInternalServerError)
 				_, _ = w.Write([]byte(err.Error()))
-				return
+				return err
 			}
 			fmt.Printf("saving file with size of %d.\n", size)
 			err = res.Body.Close()
 			if err != nil {
 				fmt.Println("fileupload failed", err)
-				w.WriteHeader(http2.StatusInternalServerError)
+				w.WriteHeader(http.StatusInternalServerError)
 				_, _ = w.Write([]byte(err.Error()))
-				return
+				return err
 			}
 
 			allBytes = b.Bytes()
@@ -93,17 +136,17 @@ func main() {
 			fileUpload, err := file_upload_handler.TrackVirtualFile(bs, fileName, ParentFolder)
 			if err != nil {
 				fmt.Println("fileupload failed", err)
-				w.WriteHeader(http2.StatusInternalServerError)
+				w.WriteHeader(http.StatusInternalServerError)
 				_, _ = w.Write([]byte(err.Error()))
-				return
+				return err
 			}
 
 			folder, err := fileIo.DownloadFolder(ParentFolder)
 			if err != nil {
 				fmt.Println("download folder failed", err)
-				w.WriteHeader(http2.StatusInternalServerError)
+				w.WriteHeader(http.StatusInternalServerError)
 				_, _ = w.Write([]byte(err.Error()))
-				return
+				return err
 			}
 
 			var wg sync.WaitGroup
@@ -115,9 +158,9 @@ func main() {
 
 			if m.Error() != nil {
 				fmt.Println("upload file failed", m.Error())
-				w.WriteHeader(http2.StatusInternalServerError)
+				w.WriteHeader(http.StatusInternalServerError)
 				_, _ = w.Write([]byte(m.Error().Error()))
-				return
+				return err
 			}
 
 		} else {
@@ -126,17 +169,25 @@ func main() {
 
 		_, err = w.Write(allBytes)
 		if err != nil {
-			panic(err)
+			return err
 		}
+
+		return nil
+	})
+
+	handler := cors.Default().Handler(router)
+
+	fmt.Printf("🌍 Started jIPFS: http://0.0.0.0:%d\n", portNum)
+	err = http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", portNum), handler)
+	if err != nil {
+		panic(err)
 	}
 
-	Gets["/ipfs/*cid"] = &getIpfs
-
-	getVersion := func(w http2.ResponseWriter, r *http2.Request, ps httprouter.Params, q *http.Queue, fileIo *file_io_handler.FileIoHandler) {
-		_, _ = w.Write([]byte("v0.0.0"))
+	if errors.Is(err, http.ErrServerClosed) {
+		fmt.Printf("Server Closed\n")
+		return
+	} else if err != nil {
+		fmt.Printf("error starting server: %s\n", err)
+		os.Exit(1)
 	}
-
-	Gets["/version"] = &getVersion
-
-	http.StartServer(Gets, Posts, []string{"jipfs"})
 }
