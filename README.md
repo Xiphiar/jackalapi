@@ -16,7 +16,7 @@ go install ./jhttp
 ```shell
 git clone https://github.com/JackalLabs/jackalgo.git
 cd jackalgoserver
-git checkout v0.0.2
+git checkout v0.0.3
 go install ./jipfs
 ```
 
