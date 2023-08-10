@@ -28,6 +28,7 @@ All defaults point towards the Jackal test network.
 * JHTTP_RPC - `https://jackal-testnet-rpc.polkachu.com:443` (possibly rate limited)
 * JHTTP_CHAIN - `lupulella-2`
 * JHTTP_PORT - `3535`
+* JIPFS_IPFS_GATEWAY - `https://ipfs.io/ipfs/`
 
 ### Setting Seed Phrase
 ```shell

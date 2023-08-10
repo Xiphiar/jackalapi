@@ -36,6 +36,11 @@ func main() {
 		port = "3535"
 	}
 
+	gateway := os.Getenv("JIPFS_IPFS_GATEWAY")
+	if len(gateway) == 0 {
+		gateway = "https://ipfs.io/ipfs/"
+	}
+
 	portNum, err := strconv.ParseInt(port, 10, 64)
 	if err != nil {
 		panic(err)
@@ -85,7 +90,7 @@ func main() {
 
 		handler, err := fileIo.DownloadFile(fmt.Sprintf("%s/%s", ParentFolder, fileName))
 		if err != nil {
-			url, err := url2.Parse("https://ipfs.io/ipfs/")
+			url, err := url2.Parse(gateway)
 			if err != nil {
 				fmt.Println("urlparse failed", err)
 				w.WriteHeader(http.StatusInternalServerError)
