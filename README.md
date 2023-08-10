@@ -6,16 +6,16 @@ You will need to supply the API with a seed phrase that corresponds to a Jackal 
 ## Installation
 ### Standard
 ```shell
-git clone https://github.com/JackalLabs/jackalgo.git
-cd jackalgoserver
+git clone https://github.com/JackalLabs/jackalapi.git
+cd jackalapi
 git checkout v0.0.2
 go install ./jhttp
 ```
 
 ### IPFS
 ```shell
-git clone https://github.com/JackalLabs/jackalgo.git
-cd jackalgoserver
+git clone https://github.com/JackalLabs/jackalapi.git
+cd jackalapi
 git checkout v0.0.3
 go install ./jipfs
 ```
