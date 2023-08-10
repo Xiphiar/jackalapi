@@ -16,7 +16,7 @@ go install ./jhttp
 ```shell
 git clone https://github.com/JackalLabs/jackalapi.git
 cd jackalapi
-git checkout v0.0.3
+git checkout v0.0.4
 go install ./jipfs
 ```
 
