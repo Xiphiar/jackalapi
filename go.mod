@@ -3,7 +3,7 @@ module github.com/JackalLabs/jackalapi
 go 1.20
 
 require (
-	github.com/JackalLabs/jackalgo v0.0.2
+	github.com/JackalLabs/jackalgo v0.0.3-0.20230818081538-af58178037c3
 	github.com/ipfs/boxo v0.10.0
 	github.com/ipfs/go-cid v0.4.1
 	github.com/ipfs/go-datastore v0.6.0
@@ -35,7 +35,6 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/speakeasy v0.1.1-0.20220910012023-760eaf8b6816 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
-	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect

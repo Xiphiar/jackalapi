@@ -8,7 +8,7 @@ You will need to supply the API with a seed phrase that corresponds to a Jackal 
 ```shell
 git clone https://github.com/JackalLabs/jackalapi.git
 cd jackalapi
-git checkout v0.0.2
+git checkout v0.0.5
 go install ./jhttp
 ```
 

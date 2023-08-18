@@ -3,16 +3,19 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"os"
+	"strconv"
 	"sync"
 
-	"github.com/JackalLabs/jackalapi/jhttp/http"
-	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
+	jhttp "github.com/JackalLabs/jackalapi/jhttp/http"
 	"github.com/JackalLabs/jackalgo/handlers/file_upload_handler"
-	"github.com/julienschmidt/httprouter"
+	"github.com/rs/cors"
+	"github.com/uptrace/bunrouter"
 
-	http2 "net/http"
+	"net/http"
 )
 
 const MaxFileSize = 32 << 30
@@ -20,56 +23,69 @@ const ParentFolder = "s/jhttp"
 
 func main() {
 
-	Gets := make(http.Handlers, 0)
-	Posts := make(http.Handlers, 0)
+	router := bunrouter.New()
 
-	getVersion := func(w http2.ResponseWriter, r *http2.Request, ps httprouter.Params, q *http.Queue, fileIo *file_io_handler.FileIoHandler) {
+	port := os.Getenv("JHTTP_PORT")
+	if len(port) == 0 {
+		port = "3535"
+	}
+
+	portNum, err := strconv.ParseInt(port, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+
+	q, fileIo := jhttp.InitServer([]string{"jhttp"})
+
+	router.GET("/version", func(w http.ResponseWriter, r bunrouter.Request) error {
 		_, err := w.Write([]byte("v0.0.0"))
 		if err != nil {
-			panic(err)
+			return err
 		}
-	}
-	Gets["/version"] = &getVersion
 
-	getDownload := func(w http2.ResponseWriter, r *http2.Request, ps httprouter.Params, q *http.Queue, fileIo *file_io_handler.FileIoHandler) {
+		return nil
+	})
 
-		name := ps.ByName("name")
+	router.GET("/download/:name", func(w http.ResponseWriter, r bunrouter.Request) error {
+
+		name := r.Param("name")
 
 		var allBytes []byte
 
 		handler, err := fileIo.DownloadFile(fmt.Sprintf("%s/%s", ParentFolder, name))
 		if err != nil {
 			fmt.Println("download file failed", err.Error())
-			w.WriteHeader(http2.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(err.Error()))
-			return
+			return err
 		}
 
 		allBytes = handler.GetFile().Buffer().Bytes()
 
 		_, err = w.Write(allBytes)
 		if err != nil {
-			panic(err)
+			return err
 		}
-	}
-	Gets["/download/:name"] = &getDownload
 
-	postUpload := func(w http2.ResponseWriter, r *http2.Request, ps httprouter.Params, q *http.Queue, fileIo *file_io_handler.FileIoHandler) {
+		return nil
+	})
+
+	router.POST("/upload", func(w http.ResponseWriter, r bunrouter.Request) error {
 		// ParseMultipartForm parses a request body as multipart/form-data
 		err := r.ParseMultipartForm(MaxFileSize) // MAX file size lives here
 		if err != nil {
 			fmt.Println(err)
-			w.WriteHeader(http2.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(err.Error()))
-			return
+			return err
 		}
 
 		file, h, err := r.FormFile("file") // Retrieve the file from form data
 		if err != nil {
 			fmt.Println(err)
-			w.WriteHeader(http2.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(err.Error()))
-			return
+			return err
 		}
 
 		var b bytes.Buffer
@@ -77,25 +93,25 @@ func main() {
 		_, err = io.Copy(&b, file)
 		if err != nil {
 			fmt.Println(err)
-			w.WriteHeader(http2.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(err.Error()))
-			return
+			return err
 		}
 
 		fileUpload, err := file_upload_handler.TrackVirtualFile(b.Bytes(), h.Filename, ParentFolder)
 		if err != nil {
 			fmt.Println("fileupload failed", err)
-			w.WriteHeader(http2.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(err.Error()))
-			return
+			return err
 		}
 
 		folder, err := fileIo.DownloadFolder(ParentFolder)
 		if err != nil {
 			fmt.Println("download folder failed", err)
-			w.WriteHeader(http2.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(err.Error()))
-			return
+			return err
 		}
 
 		var wg sync.WaitGroup
@@ -107,22 +123,36 @@ func main() {
 
 		if m.Error() != nil {
 			fmt.Println("upload file failed", m.Error())
-			w.WriteHeader(http2.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
 			_, _ = w.Write([]byte(m.Error().Error()))
-			return
+			return err
 		}
 
-		nv := http.UploadResponse{
+		nv := jhttp.UploadResponse{
 			FID: m.Fid(),
 		}
 		err = json.NewEncoder(w).Encode(nv)
 		if err != nil {
 			panic(err)
 		}
+
+		return nil
+	})
+
+	handler := cors.Default().Handler(router)
+
+	fmt.Printf("🌍 Started jHTTP: http://0.0.0.0:%d\n", portNum)
+	err = http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", portNum), handler)
+	if err != nil {
+		panic(err)
 	}
 
-	Posts["/upload"] = &postUpload
-
-	http.StartServer(Gets, Posts, []string{"jhttp"})
+	if errors.Is(err, http.ErrServerClosed) {
+		fmt.Printf("Server Closed\n")
+		return
+	} else if err != nil {
+		fmt.Printf("error starting server: %s\n", err)
+		os.Exit(1)
+	}
 
 }
