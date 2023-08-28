@@ -8,19 +8,19 @@ import (
 )
 
 func InitWalletSession() (*wallet_handler.WalletHandler, *file_io_handler.FileIoHandler) {
-	seed := os.Getenv("JHTTP_SEED")
+	seed := os.Getenv("JAPI_SEED")
 	if len(seed) == 0 {
 		panic("No Seed Provided!")
 	}
-	rpc := os.Getenv("JHTTP_RPC")
+	rpc := os.Getenv("JAPI_RPC")
 	if len(rpc) == 0 {
 		rpc = "https://jackal-testnet-rpc.polkachu.com:443"
 	}
-	chainid := os.Getenv("JHTTP_CHAIN")
+	chainid := os.Getenv("JAPI_CHAIN")
 	if len(chainid) == 0 {
 		chainid = "lupulella-2"
 	}
-	operatingRoot := os.Getenv("JHTTP_OP_ROOT")
+	operatingRoot := os.Getenv("JAPI_OP_ROOT")
 	if len(operatingRoot) == 0 {
 		operatingRoot = "s/JAPI"
 	}

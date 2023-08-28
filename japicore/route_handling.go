@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
-	"github.com/JackalLabs/jackalgo/handlers/file_upload_handler"
 	"github.com/uptrace/bunrouter"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -46,7 +46,7 @@ func VersionHandler() bunrouter.HandlerFunc {
 	}
 }
 
-func ImportHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFunc {
+func ImportHandler(fileIo *file_io_handler.FileIoHandler, queue *Queue) bunrouter.HandlerFunc {
 	return func(w http.ResponseWriter, req bunrouter.Request) error {
 		var list fileScrape
 		source := req.Header.Get("J-Source-Path")
@@ -59,8 +59,20 @@ func ImportHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFunc 
 	}
 }
 
-func IpfsHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFunc {
+func IpfsHandler(fileIo *file_io_handler.FileIoHandler, queue *Queue) bunrouter.HandlerFunc {
 	return func(w http.ResponseWriter, req bunrouter.Request) error {
+		var allBytes []byte
+		var byteBuffer bytes.Buffer
+
+		operatingRoot := os.Getenv("JAPI_IPFS_ROOT")
+		if len(operatingRoot) == 0 {
+			operatingRoot = "s/JAPI/IPFS"
+		}
+		gateway := os.Getenv("JAPI_IPFS_GATEWAY")
+		if len(gateway) == 0 {
+			gateway = "https://ipfs.io/ipfs/"
+		}
+
 		toClone := false
 
 		cloneHeader := req.Header.Get("J-Clone-Ipfs")
@@ -70,18 +82,78 @@ func IpfsHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFunc {
 
 		id := req.Param("id")
 		if len(id) == 0 {
+			warning := "Failed to get IPFS CID"
 			w.WriteHeader(500)
-			return errors.New("failed to get fileName")
+			_, err := w.Write([]byte(warning))
+			if err != nil {
+				return err
+			}
+			return errors.New(strings.ToLower(warning))
 		}
-		fid := strings.ReplaceAll(id, "/", "_")
+		cid := strings.ReplaceAll(id, "/", "_")
 
-		handler, err := fileIo.DownloadFileFromFid(fid)
+		handler, err := fileIo.DownloadFile(fmt.Sprintf("%s/%s", operatingRoot, cid))
 		if err != nil {
-			return err
-		}
+			if !toClone {
+				warning := "IPFS CID Not Found"
+				w.WriteHeader(404)
+				_, err := w.Write([]byte(warning))
+				if err != nil {
+					return err
+				}
+				return errors.New(strings.ToLower(warning))
+			}
 
-		fileBytes := handler.GetFile().Buffer().Bytes()
-		_, err = w.Write(fileBytes)
+			url, err := url.Parse(gateway)
+			if err != nil {
+				processHttpPostError("UrlParse", err, w)
+				return nil
+			}
+
+			url = url.JoinPath(cid)
+			fmt.Println(url.String())
+
+			innerReq, err := http.NewRequest("GET", url.String(), nil)
+			if err != nil {
+				processHttpPostError("CreateGetRequest", err, w)
+				return nil
+			}
+
+			res, err := http.DefaultClient.Do(innerReq)
+			if err != nil {
+				processHttpPostError("IpfsGetRequest", err, w)
+				return nil
+			}
+
+			_, err = io.Copy(&byteBuffer, res.Body)
+			if err != nil {
+				processHttpPostError("BufferCopy", err, w)
+				return nil
+			}
+			byteReader := bytes.NewReader(byteBuffer.Bytes())
+			workingBytes := cloneBytes(byteReader)
+			allBytes = cloneBytes(byteReader)
+
+			err = res.Body.Close()
+			if err != nil {
+				processHttpPostError("BodyClose", err, w)
+				return nil
+			}
+
+			fid := processUpload(w, fileIo, workingBytes, cid, operatingRoot, queue)
+			if len(fid) == 0 {
+				warning := "Failed to get FID"
+				w.WriteHeader(500)
+				_, err := w.Write([]byte(warning))
+				if err != nil {
+					return err
+				}
+				return errors.New(strings.ToLower(warning))
+			}
+		} else {
+			allBytes = handler.GetFile().Buffer().Bytes()
+		}
+		_, err = w.Write(allBytes)
 		if err != nil {
 			return err
 		}
@@ -119,7 +191,7 @@ func UploadHandler(fileIo *file_io_handler.FileIoHandler, queue *Queue) bunroute
 		wg.Add(1)
 		WorkingFileSize := 32 << 30
 
-		envSize := os.Getenv("JHTTP_MAX_FILE")
+		envSize := os.Getenv("JAPI_MAX_FILE")
 		if len(envSize) > 0 {
 			envParse, err := strconv.Atoi(envSize)
 			if err != nil {
@@ -129,7 +201,7 @@ func UploadHandler(fileIo *file_io_handler.FileIoHandler, queue *Queue) bunroute
 		}
 		MaxFileSize := int64(WorkingFileSize)
 
-		operatingRoot := os.Getenv("JHTTP_OP_ROOT")
+		operatingRoot := os.Getenv("JAPI_OP_ROOT")
 		if len(operatingRoot) == 0 {
 			operatingRoot = "s/JAPI"
 		}
@@ -154,29 +226,19 @@ func UploadHandler(fileIo *file_io_handler.FileIoHandler, queue *Queue) bunroute
 			return nil
 		}
 
-		fileUpload, err := file_upload_handler.TrackVirtualFile(byteBuffer.Bytes(), head.Filename, operatingRoot)
-		if err != nil {
-			processHttpPostError("TrackVirtualFile", err, w)
-			return nil
-		}
-
-		folder, err := fileIo.DownloadFolder(operatingRoot)
-		if err != nil {
-			processHttpPostError("DownloadFolder", err, w)
-			return nil
-		}
-
-		m := queue.Push(fileUpload, folder, fileIo, &wg)
-
-		wg.Wait()
-
-		if m.Error() != nil {
-			processHttpPostError("UploadFailed", m.Error(), w)
-			return nil
+		fid := processUpload(w, fileIo, byteBuffer.Bytes(), head.Filename, operatingRoot, queue)
+		if len(fid) == 0 {
+			warning := "Failed to get FID"
+			w.WriteHeader(500)
+			_, err := w.Write([]byte(warning))
+			if err != nil {
+				return err
+			}
+			return errors.New(strings.ToLower(warning))
 		}
 
 		successfulUpload := UploadResponse{
-			FID: m.Fid(),
+			FID: fid,
 		}
 		err = json.NewEncoder(w).Encode(successfulUpload)
 		if err != nil {
