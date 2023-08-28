@@ -61,6 +61,13 @@ func ImportHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFunc 
 
 func IpfsHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFunc {
 	return func(w http.ResponseWriter, req bunrouter.Request) error {
+		toClone := false
+
+		cloneHeader := req.Header.Get("J-Clone-Ipfs")
+		if strings.ToLower(cloneHeader) == "true" {
+			toClone = true
+		}
+
 		id := req.Param("id")
 		if len(id) == 0 {
 			w.WriteHeader(500)
@@ -105,87 +112,81 @@ func DownloadHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFun
 	}
 }
 
-func UploadHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFunc {
+func UploadHandler(fileIo *file_io_handler.FileIoHandler, queue *Queue) bunrouter.HandlerFunc {
 	return func(w http.ResponseWriter, req bunrouter.Request) error {
+		var byteBuffer bytes.Buffer
+		var wg sync.WaitGroup
+		wg.Add(1)
+		WorkingFileSize := 32 << 30
 
-		MaxFileSize := 32 << 30
 		envSize := os.Getenv("JHTTP_MAX_FILE")
 		if len(envSize) > 0 {
 			envParse, err := strconv.Atoi(envSize)
 			if err != nil {
 				return err
 			}
-			MaxFileSize = envParse
+			WorkingFileSize = envParse
+		}
+		MaxFileSize := int64(WorkingFileSize)
+
+		operatingRoot := os.Getenv("JHTTP_OP_ROOT")
+		if len(operatingRoot) == 0 {
+			operatingRoot = "s/JAPI"
 		}
 
 		// ParseMultipartForm parses a request body as multipart/form-data
-		err := r.ParseMultipartForm(MaxFileSize) // MAX file size lives here
+		err := req.ParseMultipartForm(MaxFileSize) // MAX file size lives here
 		if err != nil {
-			fmt.Println(err)
-			w.WriteHeader(http2.StatusInternalServerError)
-			_, _ = w.Write([]byte(err.Error()))
-			return
+			processHttpPostError("ParseMultipartForm", err, w)
+			return nil
 		}
 
-		file, h, err := r.FormFile("file") // Retrieve the file from form data
+		// Retrieve the file from form data
+		file, head, err := req.FormFile("file")
 		if err != nil {
-			fmt.Println(err)
-			w.WriteHeader(http2.StatusInternalServerError)
-			_, _ = w.Write([]byte(err.Error()))
-			return
+			processHttpPostError("FormFileFile", err, w)
+			return nil
 		}
 
-		var b bytes.Buffer
-
-		_, err = io.Copy(&b, file)
+		_, err = io.Copy(&byteBuffer, file)
 		if err != nil {
-			fmt.Println(err)
-			w.WriteHeader(http2.StatusInternalServerError)
-			_, _ = w.Write([]byte(err.Error()))
-			return
+			processHttpPostError("MakeByteBuffer", err, w)
+			return nil
 		}
 
-		fileUpload, err := file_upload_handler.TrackVirtualFile(b.Bytes(), h.Filename, ParentFolder)
+		fileUpload, err := file_upload_handler.TrackVirtualFile(byteBuffer.Bytes(), head.Filename, operatingRoot)
 		if err != nil {
-			fmt.Println("fileupload failed", err)
-			w.WriteHeader(http2.StatusInternalServerError)
-			_, _ = w.Write([]byte(err.Error()))
-			return
+			processHttpPostError("TrackVirtualFile", err, w)
+			return nil
 		}
 
-		folder, err := fileIo.DownloadFolder(ParentFolder)
+		folder, err := fileIo.DownloadFolder(operatingRoot)
 		if err != nil {
-			fmt.Println("download folder failed", err)
-			w.WriteHeader(http2.StatusInternalServerError)
-			_, _ = w.Write([]byte(err.Error()))
-			return
+			processHttpPostError("DownloadFolder", err, w)
+			return nil
 		}
 
-		var wg sync.WaitGroup
-		wg.Add(1)
-
-		m := q.Push(fileUpload, folder, fileIo, &wg)
+		m := queue.Push(fileUpload, folder, fileIo, &wg)
 
 		wg.Wait()
 
 		if m.Error() != nil {
-			fmt.Println("upload file failed", m.Error())
-			w.WriteHeader(http2.StatusInternalServerError)
-			_, _ = w.Write([]byte(m.Error().Error()))
-			return
+			processHttpPostError("UploadFailed", m.Error(), w)
+			return nil
 		}
 
-		nv := http.UploadResponse{
+		successfulUpload := UploadResponse{
 			FID: m.Fid(),
 		}
-		err = json.NewEncoder(w).Encode(nv)
+		err = json.NewEncoder(w).Encode(successfulUpload)
 		if err != nil {
-			panic(err)
+			processHttpPostError("JSONSuccessEncode", err, w)
+			return nil
 		}
 
-		_, err := w.Write([]byte("uploadHandler"))
+		_, err = w.Write([]byte("uploadHandler"))
 		if err != nil {
-			return err
+			processError("UploadHandlerWrite", err)
 		}
 		return nil
 	}

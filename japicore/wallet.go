@@ -22,7 +22,7 @@ func InitWalletSession() (*wallet_handler.WalletHandler, *file_io_handler.FileIo
 	}
 	operatingRoot := os.Getenv("JHTTP_OP_ROOT")
 	if len(operatingRoot) == 0 {
-		operatingRoot = "JAPI"
+		operatingRoot = "s/JAPI"
 	}
 
 	wallet, err := wallet_handler.NewWalletHandler(

@@ -12,6 +12,7 @@ import (
 
 func main() {
 	_, fileIo := japicore.InitWalletSession()
+	queue := japicore.NewQueue()
 
 	router := bunrouter.New(
 		bunrouter.WithMethodNotAllowedHandler(japicore.MethodNotAllowedHandler()),
@@ -28,8 +29,8 @@ func main() {
 		group.GET("/ipfs/:id", japicore.IpfsHandler(fileIo))
 
 		group.POST("/import", japicore.ImportHandler(fileIo))
-		group.POST("/upload", japicore.UploadHandler())
-		group.POST("/u", japicore.UploadHandler())
+		group.POST("/upload", japicore.UploadHandler(fileIo, queue))
+		group.POST("/u", japicore.UploadHandler(fileIo, queue))
 		group.DELETE("/del/:id", japicore.DeleteHandler(fileIo))
 	})
 
