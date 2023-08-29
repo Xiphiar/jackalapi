@@ -2,6 +2,7 @@ package japicore
 
 import (
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -12,12 +13,27 @@ import (
 
 type FileIoQueue struct {
 	messages []*message
+	roots    map[string]string
 }
 
 func NewFileIoQueue() *FileIoQueue {
 	q := FileIoQueue{
 		messages: make([]*message, 0),
+		roots:    make(map[string]string),
 	}
+
+	ipfsRoot := os.Getenv("JAPI_IPFS_ROOT")
+	if len(ipfsRoot) == 0 {
+		ipfsRoot = "s/JAPI/IPFS"
+	}
+	q.PushRoot("ipfs", ipfsRoot)
+
+	bulkRoot := os.Getenv("JAPI_BULK_ROOT")
+	if len(bulkRoot) == 0 {
+		bulkRoot = "s/JAPI/Bulk"
+	}
+	q.PushRoot("bulk", bulkRoot)
+
 	return &q
 }
 
@@ -56,6 +72,14 @@ func (q *FileIoQueue) Push(upload *file_upload_handler.FileUploadHandler, folder
 
 	q.messages = append(q.messages, &m)
 	return &m
+}
+
+func (q *FileIoQueue) PushRoot(root string, marker string) {
+	q.roots[root] = marker
+}
+
+func (q *FileIoQueue) GetRoot(root string) string {
+	return q.roots[root]
 }
 
 func (q *FileIoQueue) pop() *message {

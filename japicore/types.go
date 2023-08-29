@@ -12,3 +12,7 @@ type Handlers map[string]*func(w http.ResponseWriter, r bunrouter.Request, queue
 type UploadResponse struct {
 	FID string `json:"fid"`
 }
+
+type fileScrape struct {
+	targets []string `json:"targets"`
+}

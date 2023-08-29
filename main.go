@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/JackalLabs/jackalapi/japicore"
 	"github.com/rs/cors"
@@ -12,7 +13,9 @@ import (
 
 func main() {
 	_, fileIo := japicore.InitWalletSession()
-	queue := japicore.NewFileIoQueue()
+	fileIoQueue := japicore.NewFileIoQueue()
+
+	scrapeQueue := japicore.NewScrapeQueue(fileIoQueue)
 
 	router := bunrouter.New(
 		bunrouter.WithMethodNotAllowedHandler(japicore.MethodNotAllowedHandler()),
@@ -26,11 +29,11 @@ func main() {
 		group.GET("/version", japicore.VersionHandler())
 		group.GET("/download/:id", japicore.DownloadHandler(fileIo))
 		group.GET("/d/:id", japicore.DownloadHandler(fileIo))
-		group.GET("/ipfs/:id", japicore.IpfsHandler(fileIo))
+		group.GET("/ipfs/:id", japicore.IpfsHandler(fileIo, fileIoQueue))
 
-		group.POST("/import", japicore.ImportHandler(fileIo))
-		group.POST("/upload", japicore.UploadHandler(fileIo, queue))
-		group.POST("/u", japicore.UploadHandler(fileIo, queue))
+		group.POST("/import", japicore.ImportHandler(fileIo, scrapeQueue))
+		group.POST("/upload", japicore.UploadHandler(fileIo, fileIoQueue))
+		group.POST("/u", japicore.UploadHandler(fileIo, fileIoQueue))
 		group.DELETE("/del/:id", japicore.DeleteHandler(fileIo))
 	})
 

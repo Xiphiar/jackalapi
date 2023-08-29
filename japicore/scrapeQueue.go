@@ -1,29 +1,37 @@
 package japicore
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
+	"net/http"
+	"strings"
 	"sync"
 	"time"
-
-	"github.com/JackalLabs/jackalgo/handlers/file_upload_handler"
 )
 
 type ScrapeQueue struct {
 	scrapees []*scrapee
+	fIQueue  *FileIoQueue
 }
 
-func NewScrapeQueue() *ScrapeQueue {
+func NewScrapeQueue(fIQueue *FileIoQueue) *ScrapeQueue {
 	q := ScrapeQueue{
 		scrapees: make([]*scrapee, 0),
+		fIQueue:  fIQueue,
 	}
 	return &q
 }
 
 type scrapee struct {
-	filename string
-	host     string
-	wg       *sync.WaitGroup
-	err      error
+	fileIo     *file_io_handler.FileIoHandler
+	w          http.ResponseWriter
+	wg         *sync.WaitGroup
+	err        error
+	pathSelect string
+	filename   string
+	host       string
 }
 
 func (m *scrapee) Error() error {
@@ -38,6 +46,14 @@ func (m *scrapee) Host() string {
 	return m.host
 }
 
+func (m *scrapee) LoadParts() (http.ResponseWriter, string) {
+	return m.w, m.filename
+}
+
+func (q *ScrapeQueue) loadFIQueue() *FileIoQueue {
+	return q.fIQueue
+}
+
 func (q *ScrapeQueue) size() int {
 	return len(q.scrapees)
 }
@@ -46,11 +62,14 @@ func (q *ScrapeQueue) isEmpty() bool {
 	return len(q.scrapees) == 0
 }
 
-func (q *ScrapeQueue) Push(filename string, host string, wg *sync.WaitGroup) *scrapee {
+func (q *ScrapeQueue) Push(fileIo *file_io_handler.FileIoHandler, w http.ResponseWriter, wg *sync.WaitGroup, pathSelect string, filename string, host string) *scrapee {
 	m := scrapee{
-		filename: filename,
-		host:     host,
-		wg:       wg,
+		fileIo:     fileIo,
+		w:          w,
+		wg:         wg,
+		pathSelect: pathSelect,
+		filename:   filename,
+		host:       host,
 	}
 
 	q.scrapees = append(q.scrapees, &m)
@@ -64,28 +83,49 @@ func (q *ScrapeQueue) pop() *scrapee {
 }
 
 func (q *ScrapeQueue) listenOnce() {
-
 	if q.isEmpty() {
 		return
 	}
 
 	scrapee := q.pop()
+	w, filename := scrapee.LoadParts()
 
-	_, fids, _, err := message.fileIo.StaggeredUploadFiles([]*file_upload_handler.FileUploadHandler{message.upload}, message.folder, false)
-
-	fmt.Println(fids)
-
-	message.err = err
-	if len(fids) > 0 {
-		message.fid = fids[0]
+	byteBuffer, err := httpGetFileRequest(w, scrapee.Host(), filename)
+	if err != nil {
+		fmt.Println("ScrapeQueue.listenOnce() failure")
+		return
 	}
 
-	message.wg.Done()
+	fid := processUpload(w, scrapee.fileIo, byteBuffer.Bytes(), filename, scrapee.pathSelect, q.loadFIQueue())
+	if len(fid) == 0 {
+		warning := fmt.Sprintf("Failed to get FID for %s", filename)
+		asError := errors.New(strings.ToLower(warning))
+		scrapee.err = asError
+		processHttpPostError("processUpload", asError, w)
+		return
+	}
+
+	successfulUpload := UploadResponse{
+		FID: fid,
+	}
+	err = json.NewEncoder(w).Encode(successfulUpload)
+	if err != nil {
+		processHttpPostError("JSONSuccessEncode", err, w)
+		return
+	}
+
+	_, err = w.Write([]byte("uploadHandler"))
+	if err != nil {
+		processError("UploadHandlerWrite", err)
+	}
+	return
+
+	scrapee.wg.Done()
 }
 
 func (q *ScrapeQueue) Listen() {
 	for {
 		q.listenOnce()
-		time.Sleep(time.Second * 5)
+		time.Sleep(time.Second * 1)
 	}
 }

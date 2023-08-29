@@ -9,7 +9,6 @@ import (
 	"github.com/uptrace/bunrouter"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -29,7 +28,7 @@ func MethodNotAllowedHandler() bunrouter.HandlerFunc {
 
 		_, err := w.Write([]byte(warning))
 		if err != nil {
-			return err
+			processError("WWriteError for MethodNotAllowedHandler", err)
 		}
 		return nil
 	}
@@ -40,29 +39,43 @@ func VersionHandler() bunrouter.HandlerFunc {
 		version := "v0.0.0"
 		_, err := w.Write([]byte(version))
 		if err != nil {
-			return err
+			processError("WWriteError for VersionHandler", err)
 		}
 		return nil
 	}
 }
 
-func ImportHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bunrouter.HandlerFunc {
+func ImportHandler(fileIo *file_io_handler.FileIoHandler, queue *ScrapeQueue) bunrouter.HandlerFunc {
 	return func(w http.ResponseWriter, req bunrouter.Request) error {
-		var list fileScrape
+		var data fileScrape
 		source := req.Header.Get("J-Source-Path")
-		//TODO
-		err := json.NewDecoder(req.Body).Decode(&list)
+
+		err := json.NewDecoder(req.Body).Decode(&data)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			processHttpPostError("JSONDecoder", err, w)
 			return nil
 		}
+
+		var wg sync.WaitGroup
+
+		for _, target := range data.targets {
+			wg.Add(1)
+			queue.Push(fileIo, w, &wg, "bulk", target, source)
+		}
+
+		wg.Wait()
+
+		_, err = w.Write([]byte("Import complete"))
+		if err != nil {
+			processError("WWriteError for ImportHandler", err)
+		}
+		return nil
 	}
 }
 
 func IpfsHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bunrouter.HandlerFunc {
 	return func(w http.ResponseWriter, req bunrouter.Request) error {
 		var allBytes []byte
-		var byteBuffer bytes.Buffer
 
 		operatingRoot := os.Getenv("JAPI_IPFS_ROOT")
 		if len(operatingRoot) == 0 {
@@ -72,9 +85,7 @@ func IpfsHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bunr
 		if len(gateway) == 0 {
 			gateway = "https://ipfs.io/ipfs/"
 		}
-
 		toClone := false
-
 		cloneHeader := req.Header.Get("J-Clone-Ipfs")
 		if strings.ToLower(cloneHeader) == "true" {
 			toClone = true
@@ -83,13 +94,11 @@ func IpfsHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bunr
 		id := req.Param("id")
 		if len(id) == 0 {
 			warning := "Failed to get IPFS CID"
-			w.WriteHeader(500)
-			_, err := w.Write([]byte(warning))
-			if err != nil {
-				return err
-			}
-			return errors.New(strings.ToLower(warning))
+			asError := errors.New(strings.ToLower(warning))
+			processHttpPostError("processUpload", asError, w)
+			return asError
 		}
+
 		cid := strings.ReplaceAll(id, "/", "_")
 
 		handler, err := fileIo.DownloadFile(fmt.Sprintf("%s/%s", operatingRoot, cid))
@@ -104,57 +113,29 @@ func IpfsHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bunr
 				return errors.New(strings.ToLower(warning))
 			}
 
-			url, err := url.Parse(gateway)
+			byteBuffer, err := httpGetFileRequest(w, gateway, cid)
 			if err != nil {
-				processHttpPostError("UrlParse", err, w)
+				processHttpPostError("httpGetFileRequest", err, w)
 				return nil
 			}
 
-			url = url.JoinPath(cid)
-			fmt.Println(url.String())
-
-			innerReq, err := http.NewRequest("GET", url.String(), nil)
-			if err != nil {
-				processHttpPostError("CreateGetRequest", err, w)
-				return nil
-			}
-
-			res, err := http.DefaultClient.Do(innerReq)
-			if err != nil {
-				processHttpPostError("UseGetRequest", err, w)
-				return nil
-			}
-
-			_, err = io.Copy(&byteBuffer, res.Body)
-			if err != nil {
-				processHttpPostError("BufferCopy", err, w)
-				return nil
-			}
 			byteReader := bytes.NewReader(byteBuffer.Bytes())
 			workingBytes := cloneBytes(byteReader)
 			allBytes = cloneBytes(byteReader)
 
-			err = res.Body.Close()
-			if err != nil {
-				processHttpPostError("BodyClose", err, w)
-				return nil
-			}
-
 			fid := processUpload(w, fileIo, workingBytes, cid, operatingRoot, queue)
 			if len(fid) == 0 {
-				warning := "Failed to get FID"
-				w.WriteHeader(500)
-				_, err := w.Write([]byte(warning))
-				if err != nil {
-					return err
-				}
-				return errors.New(strings.ToLower(warning))
+				warning := "Failed to get FID post-upload"
+				asError := errors.New(strings.ToLower(warning))
+				processHttpPostError("IpfsHandler", asError, w)
+				return asError
 			}
 		} else {
 			allBytes = handler.GetFile().Buffer().Bytes()
 		}
 		_, err = w.Write(allBytes)
 		if err != nil {
+			processError("WWriteError for IpfsHandler", err)
 			return err
 		}
 		return nil
@@ -165,8 +146,10 @@ func DownloadHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFun
 	return func(w http.ResponseWriter, req bunrouter.Request) error {
 		id := req.Param("id")
 		if len(id) == 0 {
-			w.WriteHeader(500)
-			return errors.New("failed to get fileName")
+			warning := "Failed to get FileName"
+			asError := errors.New(strings.ToLower(warning))
+			processHttpPostError("processUpload", asError, w)
+			return asError
 		}
 		fid := strings.ReplaceAll(id, "/", "_")
 
@@ -178,7 +161,7 @@ func DownloadHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFun
 		fileBytes := handler.GetFile().Buffer().Bytes()
 		_, err = w.Write(fileBytes)
 		if err != nil {
-			return err
+			processError("WWriteError for DownloadHandler", err)
 		}
 		return nil
 	}
@@ -229,12 +212,9 @@ func UploadHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bu
 		fid := processUpload(w, fileIo, byteBuffer.Bytes(), head.Filename, operatingRoot, queue)
 		if len(fid) == 0 {
 			warning := "Failed to get FID"
-			w.WriteHeader(500)
-			_, err := w.Write([]byte(warning))
-			if err != nil {
-				return err
-			}
-			return errors.New(strings.ToLower(warning))
+			asError := errors.New(strings.ToLower(warning))
+			processHttpPostError("processUpload", asError, w)
+			return asError
 		}
 
 		successfulUpload := UploadResponse{
@@ -248,7 +228,7 @@ func UploadHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bu
 
 		_, err = w.Write([]byte("uploadHandler"))
 		if err != nil {
-			processError("UploadHandlerWrite", err)
+			processError("WWriteError for UploadHandler", err)
 		}
 		return nil
 	}
@@ -258,18 +238,18 @@ func DeleteHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFunc 
 	return func(w http.ResponseWriter, req bunrouter.Request) error {
 		id := req.Param("id")
 		if len(id) == 0 {
-			w.WriteHeader(500)
-			return errors.New("failed to get fileName")
+			warning := "Failed to get FileName"
+			asError := errors.New(strings.ToLower(warning))
+			processHttpPostError("processUpload", asError, w)
+			return asError
 		}
+
 		fid := strings.ReplaceAll(id, "/", "_")
+		fmt.Println(fid)
 
 		// TODO - add file deletion to fileIo
 		//fileIo.deleteFile
 
-		_, err := w.Write([]byte("deleteHandler"))
-		if err != nil {
-			return err
-		}
 		return nil
 	}
 }
