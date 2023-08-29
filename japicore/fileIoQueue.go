@@ -10,12 +10,12 @@ import (
 	"github.com/JackalLabs/jackalgo/handlers/folder_handler"
 )
 
-type Queue struct {
+type FileIoQueue struct {
 	messages []*message
 }
 
-func NewQueue() *Queue {
-	q := Queue{
+func NewFileIoQueue() *FileIoQueue {
+	q := FileIoQueue{
 		messages: make([]*message, 0),
 	}
 	return &q
@@ -38,15 +38,15 @@ func (m *message) Fid() string {
 	return m.fid
 }
 
-func (q *Queue) size() int {
+func (q *FileIoQueue) size() int {
 	return len(q.messages)
 }
 
-func (q *Queue) isEmpty() bool {
+func (q *FileIoQueue) isEmpty() bool {
 	return len(q.messages) == 0
 }
 
-func (q *Queue) Push(upload *file_upload_handler.FileUploadHandler, folder *folder_handler.FolderHandler, fileIo *file_io_handler.FileIoHandler, wg *sync.WaitGroup) *message {
+func (q *FileIoQueue) Push(upload *file_upload_handler.FileUploadHandler, folder *folder_handler.FolderHandler, fileIo *file_io_handler.FileIoHandler, wg *sync.WaitGroup) *message {
 	m := message{
 		fileIo: fileIo,
 		upload: upload,
@@ -58,13 +58,13 @@ func (q *Queue) Push(upload *file_upload_handler.FileUploadHandler, folder *fold
 	return &m
 }
 
-func (q *Queue) pop() *message {
+func (q *FileIoQueue) pop() *message {
 	m := q.messages[0]
 	q.messages = q.messages[1:]
 	return m
 }
 
-func (q *Queue) listenOnce() {
+func (q *FileIoQueue) listenOnce() {
 
 	if q.isEmpty() {
 		return
@@ -84,7 +84,7 @@ func (q *Queue) listenOnce() {
 	message.wg.Done()
 }
 
-func (q *Queue) Listen() {
+func (q *FileIoQueue) Listen() {
 	for {
 		q.listenOnce()
 		time.Sleep(time.Second * 5)

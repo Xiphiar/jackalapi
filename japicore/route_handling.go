@@ -46,7 +46,7 @@ func VersionHandler() bunrouter.HandlerFunc {
 	}
 }
 
-func ImportHandler(fileIo *file_io_handler.FileIoHandler, queue *Queue) bunrouter.HandlerFunc {
+func ImportHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bunrouter.HandlerFunc {
 	return func(w http.ResponseWriter, req bunrouter.Request) error {
 		var list fileScrape
 		source := req.Header.Get("J-Source-Path")
@@ -59,7 +59,7 @@ func ImportHandler(fileIo *file_io_handler.FileIoHandler, queue *Queue) bunroute
 	}
 }
 
-func IpfsHandler(fileIo *file_io_handler.FileIoHandler, queue *Queue) bunrouter.HandlerFunc {
+func IpfsHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bunrouter.HandlerFunc {
 	return func(w http.ResponseWriter, req bunrouter.Request) error {
 		var allBytes []byte
 		var byteBuffer bytes.Buffer
@@ -121,7 +121,7 @@ func IpfsHandler(fileIo *file_io_handler.FileIoHandler, queue *Queue) bunrouter.
 
 			res, err := http.DefaultClient.Do(innerReq)
 			if err != nil {
-				processHttpPostError("IpfsGetRequest", err, w)
+				processHttpPostError("UseGetRequest", err, w)
 				return nil
 			}
 
@@ -184,7 +184,7 @@ func DownloadHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFun
 	}
 }
 
-func UploadHandler(fileIo *file_io_handler.FileIoHandler, queue *Queue) bunrouter.HandlerFunc {
+func UploadHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bunrouter.HandlerFunc {
 	return func(w http.ResponseWriter, req bunrouter.Request) error {
 		var byteBuffer bytes.Buffer
 		var wg sync.WaitGroup

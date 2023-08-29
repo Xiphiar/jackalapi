@@ -12,7 +12,7 @@ import (
 
 func main() {
 	_, fileIo := japicore.InitWalletSession()
-	queue := japicore.NewQueue()
+	queue := japicore.NewFileIoQueue()
 
 	router := bunrouter.New(
 		bunrouter.WithMethodNotAllowedHandler(japicore.MethodNotAllowedHandler()),

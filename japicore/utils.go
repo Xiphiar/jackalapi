@@ -33,7 +33,7 @@ func cloneBytes(reader *bytes.Reader) []byte {
 	return allBytes
 }
 
-func processUpload(w http.ResponseWriter, fileIo *file_io_handler.FileIoHandler, bytes []byte, cid string, path string, queue *Queue) string {
+func processUpload(w http.ResponseWriter, fileIo *file_io_handler.FileIoHandler, bytes []byte, cid string, path string, queue *FileIoQueue) string {
 	fileUpload, err := file_upload_handler.TrackVirtualFile(bytes, cid, path)
 	if err != nil {
 		processHttpPostError("TrackVirtualFile", err, w)
