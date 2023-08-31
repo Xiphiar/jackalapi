@@ -3,13 +3,14 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net/http"
+	"os"
+	"strconv"
+
 	"github.com/JackalLabs/jackalapi/japicore"
 	"github.com/JackalLabs/jackalapi/jutils"
 	"github.com/rs/cors"
 	"github.com/uptrace/bunrouter"
-	"net/http"
-	"os"
-	"strconv"
 )
 
 func main() {

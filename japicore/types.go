@@ -1,8 +1,9 @@
 package japicore
 
 import (
-	"github.com/uptrace/bunrouter"
 	"net/http"
+
+	"github.com/uptrace/bunrouter"
 
 	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
 )
@@ -14,5 +15,5 @@ type UploadResponse struct {
 }
 
 type fileScrape struct {
-	targets []string `json:"targets"`
+	Targets []string `json:"targets"`
 }

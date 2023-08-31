@@ -2,6 +2,7 @@ package japicore
 
 import (
 	"fmt"
+
 	"github.com/JackalLabs/jackalapi/jutils"
 	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
 	"github.com/JackalLabs/jackalgo/handlers/wallet_handler"
@@ -14,7 +15,7 @@ func InitWalletSession() (*wallet_handler.WalletHandler, *file_io_handler.FileIo
 	operatingRoot := jutils.LoadEnvVarOrFallback("JAPI_OP_ROOT", "s/JAPI")
 
 	wallet, err := wallet_handler.NewWalletHandler(
-		seed, //slim odor fiscal swallow piece tide naive river inform shell dune crunch canyon ten time universe orchard roast horn ritual siren cactus upon forum
+		seed, // slim odor fiscal swallow piece tide naive river inform shell dune crunch canyon ten time universe orchard roast horn ritual siren cactus upon forum
 		rpc,
 		chainid)
 	if err != nil {

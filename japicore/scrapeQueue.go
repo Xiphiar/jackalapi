@@ -3,11 +3,12 @@ package japicore
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/JackalLabs/jackalapi/jutils"
-	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/JackalLabs/jackalapi/jutils"
+	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
 )
 
 type ScrapeQueue struct {
@@ -53,7 +54,7 @@ func (q *ScrapeQueue) loadFIQueue() *FileIoQueue {
 	return q.fIQueue
 }
 
-func (q *ScrapeQueue) size() int {
+func (q *ScrapeQueue) Size() int {
 	return len(q.scrapees)
 }
 
@@ -115,7 +116,6 @@ func (q *ScrapeQueue) listenOnce() {
 	if err != nil {
 		jutils.ProcessError("UploadHandlerWrite", err)
 	}
-	return
 
 	scrapee.wg.Done()
 }

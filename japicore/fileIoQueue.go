@@ -2,9 +2,10 @@ package japicore
 
 import (
 	"fmt"
-	"github.com/JackalLabs/jackalapi/jutils"
 	"sync"
 	"time"
+
+	"github.com/JackalLabs/jackalapi/jutils"
 
 	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
 	"github.com/JackalLabs/jackalgo/handlers/file_upload_handler"
@@ -48,11 +49,11 @@ func (m *message) Fid() string {
 	return m.fid
 }
 
-func (q *FileIoQueue) size() int {
+func (q *FileIoQueue) Size() int {
 	return len(q.messages)
 }
 
-func (q *FileIoQueue) isEmpty() bool {
+func (q *FileIoQueue) IsEmpty() bool {
 	return len(q.messages) == 0
 }
 
@@ -83,8 +84,7 @@ func (q *FileIoQueue) pop() *message {
 }
 
 func (q *FileIoQueue) listenOnce() {
-
-	if q.isEmpty() {
+	if q.IsEmpty() {
 		return
 	}
 

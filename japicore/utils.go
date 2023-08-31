@@ -1,11 +1,12 @@
 package japicore
 
 import (
+	"net/http"
+	"sync"
+
 	"github.com/JackalLabs/jackalapi/jutils"
 	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
 	"github.com/JackalLabs/jackalgo/handlers/file_upload_handler"
-	"net/http"
-	"sync"
 )
 
 func processUpload(w http.ResponseWriter, fileIo *file_io_handler.FileIoHandler, bytes []byte, cid string, pathSelect string, queue *FileIoQueue) string {

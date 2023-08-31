@@ -5,17 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/JackalLabs/jackalapi/jutils"
-	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
-	"github.com/uptrace/bunrouter"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/JackalLabs/jackalapi/jutils"
+	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
+	"github.com/uptrace/bunrouter"
 )
 
-func handler() bunrouter.HandlerFunc {
+func Handler() bunrouter.HandlerFunc {
 	return func(w http.ResponseWriter, req bunrouter.Request) error {
 		return nil
 	}
@@ -58,7 +59,7 @@ func ImportHandler(fileIo *file_io_handler.FileIoHandler, queue *ScrapeQueue) bu
 
 		var wg sync.WaitGroup
 
-		for _, target := range data.targets {
+		for _, target := range data.Targets {
 			wg.Add(1)
 			queue.Push(fileIo, w, &wg, "bulk", target, source)
 		}

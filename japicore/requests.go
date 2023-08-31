@@ -3,10 +3,11 @@ package japicore
 import (
 	"bytes"
 	"fmt"
-	"github.com/JackalLabs/jackalapi/jutils"
 	"io"
 	"net/http"
 	"net/url"
+
+	"github.com/JackalLabs/jackalapi/jutils"
 )
 
 func httpGetFileRequest(w http.ResponseWriter, host string, path string) (bytes.Buffer, error) {
