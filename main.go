@@ -37,9 +37,7 @@ func main() {
 		group.DELETE("/del/:id", japicore.DeleteHandler(fileIo))
 	})
 
-	os.Setenv("JHTTP_PORT", "1234")
-
-	port := os.Getenv("JHTTP_PORT")
+	port := os.Getenv("JAPI_PORT")
 	if len(port) == 0 {
 		port = "3535"
 	}
