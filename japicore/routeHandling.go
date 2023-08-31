@@ -217,7 +217,7 @@ func UploadHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bu
 	}
 }
 
-func DeleteHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFunc {
+func DeleteHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bunrouter.HandlerFunc {
 	return func(w http.ResponseWriter, req bunrouter.Request) error {
 		id := req.Param("id")
 		if len(id) == 0 {
@@ -228,7 +228,7 @@ func DeleteHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFunc 
 		fid := strings.ReplaceAll(id, "/", "_")
 		fmt.Println(fid)
 
-		folder, err := fileIo.DownloadFolder("bulk")
+		folder, err := fileIo.DownloadFolder(queue.GetRoot("bulk"))
 		if err != nil {
 			jutils.ProcessHttpError("DeleteFile", err, 404, w)
 			return err

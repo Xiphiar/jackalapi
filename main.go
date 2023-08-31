@@ -35,7 +35,7 @@ func main() {
 		group.POST("/import", japicore.ImportHandler(fileIo, scrapeQueue))
 		group.POST("/upload", japicore.UploadHandler(fileIo, fileIoQueue))
 		group.POST("/u", japicore.UploadHandler(fileIo, fileIoQueue))
-		group.DELETE("/del/:id", japicore.DeleteHandler(fileIo))
+		group.DELETE("/del/:id", japicore.DeleteHandler(fileIo, fileIoQueue))
 	})
 
 	port := jutils.LoadEnvVarOrFallback("JAPI_PORT", "3535")
