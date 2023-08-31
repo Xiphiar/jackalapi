@@ -36,7 +36,7 @@ func MethodNotAllowedHandler() bunrouter.HandlerFunc {
 
 func VersionHandler() bunrouter.HandlerFunc {
 	return func(w http.ResponseWriter, req bunrouter.Request) error {
-		version := "v0.0.0"
+		version := "v0.1.0"
 		_, err := w.Write([]byte(version))
 		if err != nil {
 			jutils.ProcessError("WWriteError for VersionHandler", err)
