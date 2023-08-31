@@ -53,7 +53,7 @@ func (q *FileIoQueue) Size() int {
 	return len(q.messages)
 }
 
-func (q *FileIoQueue) IsEmpty() bool {
+func (q *FileIoQueue) isEmpty() bool {
 	return len(q.messages) == 0
 }
 
@@ -84,7 +84,7 @@ func (q *FileIoQueue) pop() *message {
 }
 
 func (q *FileIoQueue) listenOnce() {
-	if q.IsEmpty() {
+	if q.isEmpty() {
 		return
 	}
 
