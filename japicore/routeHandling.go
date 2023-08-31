@@ -228,8 +228,17 @@ func DeleteHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFunc 
 		fid := strings.ReplaceAll(id, "/", "_")
 		fmt.Println(fid)
 
-		// TODO - add file deletion to fileIo
-		//fileIo.deleteFile
+		folder, err := fileIo.DownloadFolder("bulk")
+		if err != nil {
+			jutils.ProcessHttpError("DeleteFile", err, 404, w)
+			return err
+		}
+
+		err = fileIo.DeleteTargets([]string{fid}, folder)
+		if err != nil {
+			jutils.ProcessHttpError("DeleteFile", err, 500, w)
+			return err
+		}
 
 		return nil
 	}
