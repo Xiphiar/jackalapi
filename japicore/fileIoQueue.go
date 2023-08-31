@@ -2,7 +2,7 @@ package japicore
 
 import (
 	"fmt"
-	"os"
+	"github.com/JackalLabs/jackalapi/jutils"
 	"sync"
 	"time"
 
@@ -22,16 +22,10 @@ func NewFileIoQueue() *FileIoQueue {
 		roots:    make(map[string]string),
 	}
 
-	ipfsRoot := os.Getenv("JAPI_IPFS_ROOT")
-	if len(ipfsRoot) == 0 {
-		ipfsRoot = "s/JAPI/IPFS"
-	}
+	ipfsRoot := jutils.LoadEnvVarOrFallback("JAPI_IPFS_ROOT", "s/JAPI/IPFS")
 	q.PushRoot("ipfs", ipfsRoot)
 
-	bulkRoot := os.Getenv("JAPI_BULK_ROOT")
-	if len(bulkRoot) == 0 {
-		bulkRoot = "s/JAPI/Bulk"
-	}
+	bulkRoot := jutils.LoadEnvVarOrFallback("JAPI_BULK_ROOT", "s/JAPI/Bulk")
 	q.PushRoot("bulk", bulkRoot)
 
 	return &q

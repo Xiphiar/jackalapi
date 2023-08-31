@@ -2,34 +2,21 @@ package japicore
 
 import (
 	"fmt"
+	"github.com/JackalLabs/jackalapi/jutils"
 	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
 	"github.com/JackalLabs/jackalgo/handlers/wallet_handler"
-	"os"
 )
 
 func InitWalletSession() (*wallet_handler.WalletHandler, *file_io_handler.FileIoHandler) {
-	seed := os.Getenv("JAPI_SEED")
-	if len(seed) == 0 {
-		panic("No Seed Provided!")
-	}
-	rpc := os.Getenv("JAPI_RPC")
-	if len(rpc) == 0 {
-		rpc = "https://jackal-testnet-rpc.polkachu.com:443"
-	}
-	chainid := os.Getenv("JAPI_CHAIN")
-	if len(chainid) == 0 {
-		chainid = "lupulella-2"
-	}
-	operatingRoot := os.Getenv("JAPI_OP_ROOT")
-	if len(operatingRoot) == 0 {
-		operatingRoot = "s/JAPI"
-	}
+	seed := jutils.LoadEnvVarOrPanic("JAPI_SEED")
+	rpc := jutils.LoadEnvVarOrFallback("JAPI_RPC", "https://jackal-testnet-rpc.polkachu.com:443")
+	chainid := jutils.LoadEnvVarOrFallback("JAPI_CHAIN", "lupulella-2")
+	operatingRoot := jutils.LoadEnvVarOrFallback("JAPI_OP_ROOT", "s/JAPI")
 
 	wallet, err := wallet_handler.NewWalletHandler(
 		seed, //slim odor fiscal swallow piece tide naive river inform shell dune crunch canyon ten time universe orchard roast horn ritual siren cactus upon forum
 		rpc,
 		chainid)
-
 	if err != nil {
 		panic(err)
 	}

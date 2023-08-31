@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/JackalLabs/jackalapi/jutils"
 	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
 	"github.com/uptrace/bunrouter"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,7 +28,7 @@ func MethodNotAllowedHandler() bunrouter.HandlerFunc {
 
 		_, err := w.Write([]byte(warning))
 		if err != nil {
-			processError("WWriteError for MethodNotAllowedHandler", err)
+			jutils.ProcessError("WWriteError for MethodNotAllowedHandler", err)
 		}
 		return nil
 	}
@@ -39,7 +39,7 @@ func VersionHandler() bunrouter.HandlerFunc {
 		version := "v0.0.0"
 		_, err := w.Write([]byte(version))
 		if err != nil {
-			processError("WWriteError for VersionHandler", err)
+			jutils.ProcessError("WWriteError for VersionHandler", err)
 		}
 		return nil
 	}
@@ -52,8 +52,8 @@ func ImportHandler(fileIo *file_io_handler.FileIoHandler, queue *ScrapeQueue) bu
 
 		err := json.NewDecoder(req.Body).Decode(&data)
 		if err != nil {
-			processHttpPostError("JSONDecoder", err, w)
-			return nil
+			jutils.ProcessHttpError("JSONDecoder", err, 500, w)
+			return err
 		}
 
 		var wg sync.WaitGroup
@@ -67,7 +67,7 @@ func ImportHandler(fileIo *file_io_handler.FileIoHandler, queue *ScrapeQueue) bu
 
 		_, err = w.Write([]byte("Import complete"))
 		if err != nil {
-			processError("WWriteError for ImportHandler", err)
+			jutils.ProcessError("WWriteError for ImportHandler", err)
 		}
 		return nil
 	}
@@ -77,14 +77,8 @@ func IpfsHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bunr
 	return func(w http.ResponseWriter, req bunrouter.Request) error {
 		var allBytes []byte
 
-		operatingRoot := os.Getenv("JAPI_IPFS_ROOT")
-		if len(operatingRoot) == 0 {
-			operatingRoot = "s/JAPI/IPFS"
-		}
-		gateway := os.Getenv("JAPI_IPFS_GATEWAY")
-		if len(gateway) == 0 {
-			gateway = "https://ipfs.io/ipfs/"
-		}
+		operatingRoot := jutils.LoadEnvVarOrFallback("JAPI_IPFS_ROOT", "s/JAPI/IPFS")
+		gateway := jutils.LoadEnvVarOrFallback("JAPI_IPFS_GATEWAY", "https://ipfs.io/ipfs/")
 		toClone := false
 		cloneHeader := req.Header.Get("J-Clone-Ipfs")
 		if strings.ToLower(cloneHeader) == "true" {
@@ -94,9 +88,7 @@ func IpfsHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bunr
 		id := req.Param("id")
 		if len(id) == 0 {
 			warning := "Failed to get IPFS CID"
-			asError := errors.New(strings.ToLower(warning))
-			processHttpPostError("processUpload", asError, w)
-			return asError
+			return jutils.ProcessCustomHttpError("processUpload", warning, 500, w)
 		}
 
 		cid := strings.ReplaceAll(id, "/", "_")
@@ -115,27 +107,25 @@ func IpfsHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bunr
 
 			byteBuffer, err := httpGetFileRequest(w, gateway, cid)
 			if err != nil {
-				processHttpPostError("httpGetFileRequest", err, w)
-				return nil
+				jutils.ProcessHttpError("httpGetFileRequest", err, 404, w)
+				return err
 			}
 
 			byteReader := bytes.NewReader(byteBuffer.Bytes())
-			workingBytes := cloneBytes(byteReader)
-			allBytes = cloneBytes(byteReader)
+			workingBytes := jutils.CloneBytes(byteReader)
+			allBytes = jutils.CloneBytes(byteReader)
 
 			fid := processUpload(w, fileIo, workingBytes, cid, operatingRoot, queue)
 			if len(fid) == 0 {
 				warning := "Failed to get FID post-upload"
-				asError := errors.New(strings.ToLower(warning))
-				processHttpPostError("IpfsHandler", asError, w)
-				return asError
+				return jutils.ProcessCustomHttpError("IpfsHandler", warning, 500, w)
 			}
 		} else {
 			allBytes = handler.GetFile().Buffer().Bytes()
 		}
 		_, err = w.Write(allBytes)
 		if err != nil {
-			processError("WWriteError for IpfsHandler", err)
+			jutils.ProcessError("WWriteError for IpfsHandler", err)
 			return err
 		}
 		return nil
@@ -147,9 +137,7 @@ func DownloadHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFun
 		id := req.Param("id")
 		if len(id) == 0 {
 			warning := "Failed to get FileName"
-			asError := errors.New(strings.ToLower(warning))
-			processHttpPostError("processUpload", asError, w)
-			return asError
+			return jutils.ProcessCustomHttpError("processUpload", warning, 404, w)
 		}
 		fid := strings.ReplaceAll(id, "/", "_")
 
@@ -161,7 +149,7 @@ func DownloadHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFun
 		fileBytes := handler.GetFile().Buffer().Bytes()
 		_, err = w.Write(fileBytes)
 		if err != nil {
-			processError("WWriteError for DownloadHandler", err)
+			jutils.ProcessError("WWriteError for DownloadHandler", err)
 		}
 		return nil
 	}
@@ -174,7 +162,7 @@ func UploadHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bu
 		wg.Add(1)
 		WorkingFileSize := 32 << 30
 
-		envSize := os.Getenv("JAPI_MAX_FILE")
+		envSize := jutils.LoadEnvVarOrFallback("JAPI_MAX_FILE", "")
 		if len(envSize) > 0 {
 			envParse, err := strconv.Atoi(envSize)
 			if err != nil {
@@ -184,37 +172,32 @@ func UploadHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bu
 		}
 		MaxFileSize := int64(WorkingFileSize)
 
-		operatingRoot := os.Getenv("JAPI_OP_ROOT")
-		if len(operatingRoot) == 0 {
-			operatingRoot = "s/JAPI"
-		}
+		operatingRoot := jutils.LoadEnvVarOrFallback("JAPI_OP_ROOT", "s/JAPI")
 
 		// ParseMultipartForm parses a request body as multipart/form-data
 		err := req.ParseMultipartForm(MaxFileSize) // MAX file size lives here
 		if err != nil {
-			processHttpPostError("ParseMultipartForm", err, w)
-			return nil
+			jutils.ProcessHttpError("ParseMultipartForm", err, 400, w)
+			return err
 		}
 
 		// Retrieve the file from form data
 		file, head, err := req.FormFile("file")
 		if err != nil {
-			processHttpPostError("FormFileFile", err, w)
-			return nil
+			jutils.ProcessHttpError("FormFileFile", err, 400, w)
+			return err
 		}
 
 		_, err = io.Copy(&byteBuffer, file)
 		if err != nil {
-			processHttpPostError("MakeByteBuffer", err, w)
-			return nil
+			jutils.ProcessHttpError("MakeByteBuffer", err, 500, w)
+			return err
 		}
 
 		fid := processUpload(w, fileIo, byteBuffer.Bytes(), head.Filename, operatingRoot, queue)
 		if len(fid) == 0 {
 			warning := "Failed to get FID"
-			asError := errors.New(strings.ToLower(warning))
-			processHttpPostError("processUpload", asError, w)
-			return asError
+			return jutils.ProcessCustomHttpError("processUpload", warning, 500, w)
 		}
 
 		successfulUpload := UploadResponse{
@@ -222,13 +205,13 @@ func UploadHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bu
 		}
 		err = json.NewEncoder(w).Encode(successfulUpload)
 		if err != nil {
-			processHttpPostError("JSONSuccessEncode", err, w)
-			return nil
+			jutils.ProcessHttpError("JSONSuccessEncode", err, 500, w)
+			return err
 		}
 
 		_, err = w.Write([]byte("uploadHandler"))
 		if err != nil {
-			processError("WWriteError for UploadHandler", err)
+			jutils.ProcessError("WWriteError for UploadHandler", err)
 		}
 		return nil
 	}
@@ -239,9 +222,7 @@ func DeleteHandler(fileIo *file_io_handler.FileIoHandler) bunrouter.HandlerFunc 
 		id := req.Param("id")
 		if len(id) == 0 {
 			warning := "Failed to get FileName"
-			asError := errors.New(strings.ToLower(warning))
-			processHttpPostError("processUpload", asError, w)
-			return asError
+			return jutils.ProcessCustomHttpError("processUpload", warning, 400, w)
 		}
 
 		fid := strings.ReplaceAll(id, "/", "_")

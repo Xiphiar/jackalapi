@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/JackalLabs/jackalapi/japicore"
+	"github.com/JackalLabs/jackalapi/jutils"
 	"github.com/rs/cors"
 	"github.com/uptrace/bunrouter"
 	"net/http"
@@ -37,10 +38,7 @@ func main() {
 		group.DELETE("/del/:id", japicore.DeleteHandler(fileIo))
 	})
 
-	port := os.Getenv("JAPI_PORT")
-	if len(port) == 0 {
-		port = "3535"
-	}
+	port := jutils.LoadEnvVarOrFallback("JAPI_PORT", "3535")
 
 	portNum, err := strconv.ParseInt(port, 10, 64)
 	if err != nil {

@@ -3,6 +3,7 @@ package japicore
 import (
 	"bytes"
 	"fmt"
+	"github.com/JackalLabs/jackalapi/jutils"
 	"io"
 	"net/http"
 	"net/url"
@@ -15,7 +16,7 @@ func httpGetFileRequest(w http.ResponseWriter, host string, path string) (bytes.
 
 	url, err := url.Parse(host)
 	if err != nil {
-		processHttpPostError("UrlParse", err, w)
+		jutils.ProcessHttpError("UrlParse", err, 500, w)
 		return byteBuffer, err
 	}
 
@@ -24,25 +25,25 @@ func httpGetFileRequest(w http.ResponseWriter, host string, path string) (bytes.
 
 	innerReq, err := http.NewRequest("GET", url.String(), nil)
 	if err != nil {
-		processHttpPostError("CreateGetRequest", err, w)
+		jutils.ProcessHttpError("CreateGetRequest", err, 500, w)
 		return byteBuffer, err
 	}
 
 	res, err := http.DefaultClient.Do(innerReq)
 	if err != nil {
-		processHttpPostError("UseGetRequest", err, w)
+		jutils.ProcessHttpError("UseGetRequest", err, 500, w)
 		return byteBuffer, err
 	}
 
 	_, err = io.Copy(&byteBuffer, res.Body)
 	if err != nil {
-		processHttpPostError("BufferCopy", err, w)
+		jutils.ProcessHttpError("BufferCopy", err, 500, w)
 		return byteBuffer, err
 	}
 
 	err = res.Body.Close()
 	if err != nil {
-		processHttpPostError("BodyClose", err, w)
+		jutils.ProcessHttpError("BodyClose", err, 500, w)
 		return byteBuffer, err
 	}
 

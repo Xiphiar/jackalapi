@@ -2,11 +2,10 @@ package japicore
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
+	"github.com/JackalLabs/jackalapi/jutils"
 	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 )
@@ -99,9 +98,7 @@ func (q *ScrapeQueue) listenOnce() {
 	fid := processUpload(w, scrapee.fileIo, byteBuffer.Bytes(), filename, scrapee.pathSelect, q.loadFIQueue())
 	if len(fid) == 0 {
 		warning := fmt.Sprintf("Failed to get FID for %s", filename)
-		asError := errors.New(strings.ToLower(warning))
-		scrapee.err = asError
-		processHttpPostError("processUpload", asError, w)
+		scrapee.err = jutils.ProcessCustomHttpError("processUpload", warning, 500, w)
 		return
 	}
 
@@ -110,13 +107,13 @@ func (q *ScrapeQueue) listenOnce() {
 	}
 	err = json.NewEncoder(w).Encode(successfulUpload)
 	if err != nil {
-		processHttpPostError("JSONSuccessEncode", err, w)
+		jutils.ProcessHttpError("JSONSuccessEncode", err, 500, w)
 		return
 	}
 
 	_, err = w.Write([]byte("uploadHandler"))
 	if err != nil {
-		processError("UploadHandlerWrite", err)
+		jutils.ProcessError("UploadHandlerWrite", err)
 	}
 	return
 
