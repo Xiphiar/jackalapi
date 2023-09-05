@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	_, fileIo := japicore.InitWalletSession()
+	wallet, fileIo := japicore.InitWalletSession()
 	fileIoQueue := japicore.NewFileIoQueue()
 
 	scrapeQueue := japicore.NewScrapeQueue(fileIoQueue)
@@ -46,11 +46,16 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("🌍 Started JHN: http://0.0.0.0:%d\n", portNum)
+	fmt.Println("<<<<< * >>>>>")
+	fmt.Printf("🌍 Started JAPI: http://0.0.0.0:%d\n", portNum)
 	err = http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", portNum), handler)
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Printf("🌍 JAPI Wallet: %s\n", wallet.GetAddress())
+	fmt.Printf("🌍 JAPI Network: %s\n", wallet.GetChainID())
+	fmt.Println("<<<<< * >>>>>")
 
 	if errors.Is(err, http.ErrServerClosed) {
 		fmt.Printf("Server Closed\n")
