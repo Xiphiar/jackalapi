@@ -1,7 +1,7 @@
 package japicore
 
 import (
-	"fmt"
+	"strings"
 
 	"github.com/JackalLabs/jackalapi/jutils"
 	"github.com/JackalLabs/jackalgo/handlers/file_io_handler"
@@ -21,15 +21,16 @@ func InitWalletSession() (*wallet_handler.WalletHandler, *file_io_handler.FileIo
 	if err != nil {
 		panic(err)
 	}
+	println("Wallet Address:", wallet.GetAddress())
 
 	fileIo, err := file_io_handler.NewFileIoHandler(wallet.WithGas("500000"))
 	if err != nil {
 		panic(err)
 	}
 
-	_, err = fileIo.DownloadFolder(fmt.Sprintf("s/%s", operatingRoot))
+	_, err = fileIo.DownloadFolder(operatingRoot)
 	if err != nil {
-		_, err = fileIo.GenerateInitialDirs([]string{operatingRoot})
+		_, err = fileIo.GenerateInitialDirs([]string{strings.TrimLeft(operatingRoot, "s/")})
 		if err != nil {
 			panic(err)
 		}
