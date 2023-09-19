@@ -23,6 +23,9 @@ func NewFileIoQueue() *FileIoQueue {
 		roots:    make(map[string]string),
 	}
 
+	opRoot := jutils.LoadEnvVarOrFallback("JAPI_OP_ROOT", "s/JAPI")
+	q.PushRoot("op", opRoot)
+
 	ipfsRoot := jutils.LoadEnvVarOrFallback("JAPI_IPFS_ROOT", "s/JAPI/IPFS")
 	q.PushRoot("ipfs", ipfsRoot)
 

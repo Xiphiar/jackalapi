@@ -118,7 +118,7 @@ func IpfsHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bunr
 			workingBytes := jutils.CloneBytes(byteReader)
 			allBytes = jutils.CloneBytes(byteReader)
 
-			fid := processUpload(w, fileIo, workingBytes, cid, operatingRoot, queue)
+			fid := processUpload(w, fileIo, workingBytes, cid, "ipfs", queue)
 			if len(fid) == 0 {
 				warning := "Failed to get FID post-upload"
 				return jutils.ProcessCustomHttpError("IpfsHandler", warning, 500, w)
@@ -165,7 +165,6 @@ func UploadHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bu
 		wg.Add(1)
 		WorkingFileSize := 32 << 30
 
-		operatingRoot := jutils.LoadEnvVarOrFallback("JAPI_OP_ROOT", "s/JAPI")
 		envSize := jutils.LoadEnvVarOrFallback("JAPI_MAX_FILE", "")
 		if len(envSize) > 0 {
 			envParse, err := strconv.Atoi(envSize)
@@ -196,7 +195,7 @@ func UploadHandler(fileIo *file_io_handler.FileIoHandler, queue *FileIoQueue) bu
 			return err
 		}
 
-		fid := processUpload(w, fileIo, byteBuffer.Bytes(), head.Filename, operatingRoot, queue)
+		fid := processUpload(w, fileIo, byteBuffer.Bytes(), head.Filename, "op", queue)
 		if len(fid) == 0 {
 			warning := "Failed to get FID"
 			return jutils.ProcessCustomHttpError("processUpload", warning, 500, w)
